@@ -51,7 +51,7 @@ class RNNModel(nn.Module):
 class AdaptiveSoftmaxRNN(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, ntoken, ninp, nhid, nlayers, dropout=0.5, cutoffs=[5000, 10000]):
+    def __init__(self, ntoken, ninp, nhid, nlayers, dropout=0.5, cutoffs=[20000, 50000]):
         super(AdaptiveSoftmaxRNN, self).__init__()
         ntoken = ntoken
         self.drop = nn.Dropout(dropout)
@@ -63,6 +63,13 @@ class AdaptiveSoftmaxRNN(nn.Module):
         self.init_weights()
         self.nhid = nhid
         self.nlayers = nlayers
+        
+        # weight sharing as described in the paper
+        for i in range(len(cutoffs)):
+            self.encoder.tail[i][0].weight = self.decoder.tail[i][1].weight
+            
+            # sharing the projection layers
+            self.encoder.tail[i][1].weight = torch.nn.Parameter(self.decoder.tail[i][0].weight.transpose(0,1))
 
     def init_weights(self):
         initrange = 0.1
@@ -114,8 +121,12 @@ class AdaptiveInput(nn.Module):
         self.n_clusters = len(self.cutoffs) - 1
         self.head_size = self.cutoffs[0]
 
-        self.head = nn.Sequential(nn.Embedding(self.head_size, self.in_features),
-                                  nn.Linear(self.in_features, self.in_features, bias=self.head_bias))
+#         self.head = nn.Sequential(nn.Embedding(self.head_size, self.in_features),
+#                                   nn.Linear(self.in_features, self.in_features, bias=self.head_bias))
+        
+        self.head = nn.Embedding(self.head_size, self.in_features)
+#                                   nn.Linear(self.in_features, self.in_features, bias=self.head_bias))
+        
         self.tail = nn.ModuleList()
 
         for i in range(self.n_clusters):
