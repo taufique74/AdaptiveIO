@@ -9,6 +9,7 @@ import torch.onnx
 from millify import millify
 import data
 import model
+import pickle
 # import wandb
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM/GRU/Transformer Language Model')
@@ -66,7 +67,16 @@ device = torch.device("cuda" if args.cuda else "cpu")
 # Load data
 ###############################################################################
 
-corpus = data.Corpus(args.data)
+# corpus = data.Corpus(args.data)
+
+vocab_cache = f'{args.data}/vocab.pickle'
+if(os.path.exists(vocab_cache)):
+    with open(vocab_cache, 'rb') as f:
+        corpus = pickle.load(f)
+else:
+    corpus = data.Corpus(args.data)
+    with open(vocab_cache, 'wb') as f:
+        pickle.dump(corpus, f)
 
 
 def batchify(data, bsz):
@@ -104,14 +114,16 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     min_lr = 2.0
 )
 
-print(f'total tokens: {corpus.dictionary.total_tokens}')
-print(f'vocabulary size: {len(corpus.dictionary)}')
+total_tokens = corpus.dictionary.total_tokens
+vocabulary = len(corpus.dictionary)
+print(f'total tokens: {total_tokens} ({millify(total_tokens)})')
+print(f'vocabulary size: {vocabulary} ({millify(vocabulary)})')
 print('-' * 89)
 print(model)
 total_params = sum(p.numel() for p in model.parameters())
 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-print(f'total params: {millify(total_params)}')
-print(f'trainable params: {millify(trainable_params)}')
+print(f'total params: {total_params} ({millify(total_params)})')
+print(f'trainable params: {trainable_params} ({millify(trainable_params)})')
 print('-' * 89)
 
 ###############################################################################
