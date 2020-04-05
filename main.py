@@ -108,7 +108,7 @@ optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer = optimizer,
     mode = 'min',
-    factor = 0.25,
+    factor = 0.5,
     patience = 1,
     verbose = True,
     min_lr = 2.0
