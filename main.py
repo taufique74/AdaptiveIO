@@ -10,7 +10,7 @@ from millify import millify
 import data
 import model
 import pickle
-# import wandb
+import wandb
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM/GRU/Transformer Language Model')
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
@@ -221,7 +221,7 @@ def train():
                     'loss {:5.2f} | ppl {:8.2f}'.format(
                 epoch, batch, len(train_data) // args.bptt, lr,
                 elapsed * 1000 / args.log_interval, cur_loss, ppl))
-            # wandb.log({'Perplexity': ppl, 'Loss': cur_loss})
+            wandb.log({'Perplexity': ppl, 'Loss': cur_loss})
             total_loss = 0
             start_time = time.time()
 
@@ -232,9 +232,9 @@ best_val_loss = None
 
 # At any point you can hit Ctrl + C to break out of training early.
 try:
-    # name = f'b{args.batch_size}_lr{args.lr}_L{args.nlayers}_h{args.nhid}_em{args.emsize}_drp{args.dropout}_bptt{args.bptt}'
-    # wandb.init(name=name, project="LanguageModelSmall")
-    # wandb.config.update(args)
+    name = f'b{args.batch_size}_lr{args.lr}_L{args.nlayers}_h{args.nhid}_em{args.emsize}_drp{args.dropout}_bptt{args.bptt}'
+    wandb.init(name=name, project="AdaptiveIO")
+    wandb.config.update(args)
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
         train()
@@ -245,7 +245,7 @@ try:
                 'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
                                            val_loss, val_ppl))
         print('-' * 89)
-        # wandb.log({'val_ppl': val_ppl, 'val_loss': val_loss})
+        wandb.log({'val_ppl': val_ppl, 'val_loss': val_loss})
         # Save the model if the validation loss is the best we've seen so far.
         if not best_val_loss or val_loss < best_val_loss:
             best_val_loss = val_loss
