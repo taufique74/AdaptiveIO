@@ -33,8 +33,10 @@ parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
-parser.add_argument('--dropout', type=float, default=0.2,
+parser.add_argument('--dropout', type=float, default=0.5,
                     help='dropout applied to layers (0 = no dropout)')
+parser.add_argument('--rnn_dropout', type=float, default=0.2,
+                    help='')
 parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--seed', type=int, default=1111,
@@ -101,7 +103,7 @@ ntokens = len(corpus.dictionary)
 if not adaptive:
     model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 else:
-    model = model.AdaptiveSoftmaxRNN(ntokens, args.emsize, args.nhid, args.nlayers, args.dropout).to(device)
+    model = model.AdaptiveSoftmaxRNN(ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.rnn_dropout).to(device)
 
 criterion = nn.NLLLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
