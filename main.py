@@ -103,7 +103,16 @@ ntokens = len(corpus.dictionary)
 if not adaptive:
     model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 else:
-    model = model.AdaptiveSoftmaxRNN(ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.rnn_dropout).to(device)
+    model = model.AdaptiveSoftmaxRNN(
+        ntokens,
+        args.emsize,
+        args.nhid, 
+        args.nlayers, 
+        args.dropout, 
+        args.rnn_dropout,
+        cutoffs=[20000, 50000],
+        tie_weights = args.tied
+      ).to(device)
 
 criterion = nn.NLLLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
