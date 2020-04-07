@@ -53,13 +53,13 @@ class RNNModel(nn.Module):
 class AdaptiveSoftmaxRNN(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, ntoken, ninp, nhid, nlayers, dropout=0.5, cutoffs=[20000, 50000]):
+    def __init__(self, ntoken, ninp, nhid, nlayers, dropout=0.5, rnn_dropout=0.2, cutoffs=[20000, 50000]):
         super(AdaptiveSoftmaxRNN, self).__init__()
         ntoken = ntoken
         self.drop = nn.Dropout(dropout)
         # self.encoder = nn.Embedding(ntoken, ninp)
         self.encoder = AdaptiveInput(ninp, ntoken, cutoffs)
-        self.rnn = nn.LSTM(ninp, nhid, nlayers, dropout=dropout)
+        self.rnn = nn.LSTM(ninp, nhid, nlayers, dropout=rnn_dropout)
         # self.decoder = nn.Linear(nhid, ntoken)
         self.decoder = AdaptiveLogSoftmaxWithLoss(nhid, ntoken, cutoffs=cutoffs, div_value=2.0)
         self.init_weights()
