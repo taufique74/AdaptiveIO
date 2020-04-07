@@ -53,7 +53,7 @@ class RNNModel(nn.Module):
 class AdaptiveSoftmaxRNN(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, ntoken, ninp, nhid, nlayers, dropout=0.5, rnn_dropout=0.2, cutoffs=[20000, 50000]):
+    def __init__(self, ntoken, ninp, nhid, nlayers, dropout=0.5, rnn_dropout=0.2, cutoffs=[20000, 50000], tie_weights=True):
         super(AdaptiveSoftmaxRNN, self).__init__()
         ntoken = ntoken
         self.drop = nn.Dropout(dropout)
@@ -67,11 +67,12 @@ class AdaptiveSoftmaxRNN(nn.Module):
         self.nlayers = nlayers
         
         # weight sharing as described in the paper
-        for i in range(len(cutoffs)):
-            self.encoder.tail[i][0].weight = self.decoder.tail[i][1].weight
-            
-            # sharing the projection layers
-            self.encoder.tail[i][1].weight = torch.nn.Parameter(self.decoder.tail[i][0].weight.transpose(0,1))
+        if tie_weights:
+          for i in range(len(cutoffs)):
+              self.encoder.tail[i][0].weight = self.decoder.tail[i][1].weight
+              
+              # sharing the projection layers
+              self.encoder.tail[i][1].weight = torch.nn.Parameter(self.decoder.tail[i][0].weight.transpose(0,1))
 
     def init_weights(self):
         initrange = 0.1
