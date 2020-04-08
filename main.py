@@ -47,6 +47,10 @@ parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
 parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
+parser.add_argument('--no_log', action='store_true',
+                    help='whether to log in wandb')
+parser.add_argument('--no_save', action='store_true',
+                    help='whether to save models or not')                                      
 parser.add_argument('--save', type=str, default='checkpoints',
                     help='path to save the final model')
 parser.add_argument('--onnx-export', type=str, default='',
@@ -231,11 +235,15 @@ def train():
             cur_loss = total_loss / args.log_interval
             elapsed = time.time() - start_time
             ppl = math.exp(loss)
+           
             print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
                     'loss {:5.2f} | ppl {:8.2f}'.format(
                 epoch, batch, len(train_data) // args.bptt, lr,
                 elapsed * 1000 / args.log_interval, cur_loss, ppl))
-            wandb.log({'Perplexity': ppl, 'Loss': cur_loss})
+            
+            if not args.no_log:
+              wandb.log({'Perplexity': ppl, 'Loss': cur_loss})
+            
             total_loss = 0
             start_time = time.time()
 
@@ -246,9 +254,10 @@ best_val_loss = None
 
 # At any point you can hit Ctrl + C to break out of training early.
 try:
-    name = f'b{args.batch_size}_lr{args.lr}_L{args.nlayers}_h{args.nhid}_em{args.emsize}_drp{args.emb_dropout}_bptt{args.bptt}'
-    wandb.init(name=name, project="AdaptiveIO")
-    wandb.config.update(args)
+    if not args.no_log:
+      name = f'b{args.batch_size}_lr{args.lr}_L{args.nlayers}_h{args.nhid}_em{args.emsize}_drp{args.rnn_dropout}_bptt{args.bptt}'
+      wandb.init(name=name, project="AdaptiveIO")
+      wandb.config.update(args)
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
         train()
@@ -259,22 +268,26 @@ try:
                 'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
                                            val_loss, val_ppl))
         print('-' * 89)
-        wandb.log({'val_ppl': val_ppl, 'val_loss': val_loss})
+        
+        if not args.no_log:
+          wandb.log({'val_ppl': val_ppl, 'val_loss': val_loss})
+        
         # Save the model if the validation loss is the best we've seen so far.
-        if not best_val_loss or val_loss < best_val_loss:
-            best_val_loss = val_loss
-            print('saving model...')
-            # torch.save({
-            #   'epoch': epoch,
-            #   'model_state_dict': model.state_dict(),
-            #   'lr': lr,
-            #   'loss': val_loss
-            # }, f'{args.save}/model_epoch{epoch}_valppl{math.exp(val_loss)}.pt')
-            if os.path.exists(args.save):
-                torch.save(model, f'{args.save}/model_epoch{epoch}_valppl{math.exp(val_loss)}_.pt')
-            else:
-                os.mkdir(args.save)
-                torch.save(model, f'{args.save}/model_epoch{epoch}_valppl{math.exp(val_loss)}_.pt')
+        if not args.no_save:
+          if not best_val_loss or val_loss < best_val_loss:
+              best_val_loss = val_loss
+              print('saving model...')
+              # torch.save({
+              #   'epoch': epoch,
+              #   'model_state_dict': model.state_dict(),
+              #   'lr': lr,
+              #   'loss': val_loss
+              # }, f'{args.save}/model_epoch{epoch}_valppl{math.exp(val_loss)}.pt')
+              if os.path.exists(args.save):
+                  torch.save(model, f'{args.save}/model_epoch{epoch}_valppl{math.exp(val_loss)}_.pt')
+              else:
+                  os.mkdir(args.save)
+                  torch.save(model, f'{args.save}/model_epoch{epoch}_valppl{math.exp(val_loss)}_.pt')
 
         # else:
             # Anneal t
