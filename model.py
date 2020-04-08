@@ -57,6 +57,7 @@ class AdaptiveSoftmaxRNN(nn.Module):
         super(AdaptiveSoftmaxRNN, self).__init__()
         ntoken = ntoken
         self.emb_dropout = nn.Dropout(emb_dropout)
+        self.out_dropout = nn.Dropout(0.5)
         # self.encoder = nn.Embedding(ntoken, ninp)
         self.encoder = AdaptiveInput(ninp, ntoken, cutoffs, tail_drop=tail_dropout)
         self.rnn = nn.LSTM(ninp, nhid, nlayers, dropout=rnn_dropout)
@@ -83,7 +84,7 @@ class AdaptiveSoftmaxRNN(nn.Module):
     def forward(self, input, hidden, targets):
         emb = self.emb_dropout(self.encoder(input)) # (seq_len, bsz, ninp)
         output, hidden = self.rnn(emb, hidden) # (seq_len, bsz, ninp)
-        output = self.emb_dropout(output)
+        output = self.out_dropout(output)
         output = output.view(-1,output.size(2)) # (seq_len*bsz, ninp)
         # output = output.transpose(0,1)
         # targets = targets.view(targets.size(0) * targets.size(1)) # (seq_len * bsz)
