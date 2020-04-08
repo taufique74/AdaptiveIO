@@ -246,7 +246,7 @@ best_val_loss = None
 
 # At any point you can hit Ctrl + C to break out of training early.
 try:
-    name = f'b{args.batch_size}_lr{args.lr}_L{args.nlayers}_h{args.nhid}_em{args.emsize}_drp{args.dropout}_bptt{args.bptt}'
+    name = f'b{args.batch_size}_lr{args.lr}_L{args.nlayers}_h{args.nhid}_em{args.emsize}_drp{args.emb_dropout}_bptt{args.bptt}'
     wandb.init(name=name, project="AdaptiveIO")
     wandb.config.update(args)
     for epoch in range(1, args.epochs+1):
