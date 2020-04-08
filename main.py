@@ -33,10 +33,12 @@ parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
-parser.add_argument('--dropout', type=float, default=0.5,
-                    help='dropout applied to layers (0 = no dropout)')
+parser.add_argument('--emb_dropout', type=float, default=0.0,
+                    help='dropout applied to embedding')
 parser.add_argument('--rnn_dropout', type=float, default=0.2,
-                    help='')
+                    help='dropout applied to rnn layers')
+parser.add_argument('--tail_dropout', type=float, default=0.5,
+                    help='dropout applied to tail clusters')
 parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--seed', type=int, default=1111,
@@ -101,15 +103,16 @@ test_data = batchify(corpus.test, eval_batch_size)
 
 ntokens = len(corpus.dictionary)
 if not adaptive:
-    model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
+    model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.emb_dropout, args.tied).to(device)
 else:
     model = model.AdaptiveSoftmaxRNN(
         ntokens,
         args.emsize,
         args.nhid, 
         args.nlayers, 
-        args.dropout, 
+        args.emb_dropout, 
         args.rnn_dropout,
+        args.tail_dropout,
         cutoffs=[20000, 50000],
         tie_weights = args.tied
       ).to(device)
