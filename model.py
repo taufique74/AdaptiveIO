@@ -64,6 +64,46 @@ class RNNModel(nn.Module):
         else:
             return weight.new_zeros(self.nlayers, bsz, self.nhid)
 
+class AWD_LSTM(nn.LSTM):
+    def __init__(self, *args, dropouti: float=0.,
+                 dropoutw: float=0.,
+                 dropouto: float=0.,
+                 unit_forget_bias=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.unit_forget_bias = unit_forget_bias
+        self.dropoutw = dropoutw
+        self.input_drop = VariationalDropout(dropouti)
+        self.output_drop = VariationalDropout(dropouto)
+        self._init_weights()
+
+    def _init_weights(self):
+        """
+        Use orthogonal init for recurrent layers, xavier uniform for input layers
+        Bias is 0 except for forget gate
+        """
+        for name, param in self.named_parameters():
+            if "weight_hh" in name:
+                nn.init.orthogonal_(param.data)
+            elif "weight_ih" in name:
+                nn.init.xavier_uniform_(param.data)
+            elif "bias" in name and self.unit_forget_bias:
+                nn.init.zeros_(param.data)
+                param.data[self.hidden_size:2 * self.hidden_size] = 1
+
+    def _drop_weights(self):
+        for name, param in self.named_parameters():
+            if "weight_hh" in name:
+                getattr(self, name).data = \
+                    torch.nn.functional.dropout(param.data, p=self.dropoutw,
+                                                training=self.training).contiguous()
+
+    def forward(self, input, hx=None):
+        self._drop_weights()
+        self.flatten_parameters()
+        input = self.input_drop(input)
+        seq, state = super().forward(input, hx=hx)
+        return self.output_drop(seq), state
+
 
 class AdaptiveSoftmaxRNN(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
@@ -123,7 +163,7 @@ class AdaptiveSoftmaxRNNImproved(nn.Module):
         self.out_dropout = VariationalDropout(out_dropout)
         # self.encoder = nn.Embedding(ntoken, ninp)
         self.encoder = AdaptiveInput(ninp, ntoken, cutoffs, tail_drop=tail_dropout)
-        self.rnn = nn.LSTM(ninp, nhid, nlayers, dropout=rnn_dropout)
+        self.rnn = AWD_LSTM(ninp, nhid, num_layers=nlayers, dropouti=0.3, dropouto=0.3, dropoutw=rnn_dropout)
         # self.decoder = nn.Linear(nhid, ntoken)
         self.decoder = AdaptiveLogSoftmaxWithLoss(nhid, ntoken, cutoffs=cutoffs, div_value=2.0, tail_drop=tail_dropout)
         self.init_weights()
