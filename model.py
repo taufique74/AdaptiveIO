@@ -100,7 +100,7 @@ class AdaptiveSoftmaxRNN(nn.Module):
 
 class AdaptiveInput(nn.Module):
     def __init__(self, in_features, n_classes, cutoffs=None,
-                 div_value=2.0, head_bias=False):
+                 div_value=2.0, head_bias=False, tail_drop=0.5):
         super(AdaptiveInput, self).__init__()
         if not cutoffs:
             cutoffs = [5000, 10000]
@@ -120,6 +120,7 @@ class AdaptiveInput(nn.Module):
         self.cutoffs = cutoffs + [n_classes]
         self.div_value = div_value
         self.head_bias = head_bias
+        self.tail_drop = tail_drop
 
         self.n_clusters = len(self.cutoffs) - 1
         self.head_size = self.cutoffs[0]
@@ -139,7 +140,7 @@ class AdaptiveInput(nn.Module):
             projection = nn.Sequential(
                 nn.Embedding(osz, hsz),
                 nn.Linear(hsz, self.in_features, bias=False),
-                nn.Dropout(0.3)
+                nn.Dropout(self.tail_drop)
             )
 
             self.tail.append(projection)
@@ -178,7 +179,7 @@ class AdaptiveInput(nn.Module):
       
 _ASMoutput = namedtuple('ASMoutput', ['output', 'loss'])
 class AdaptiveLogSoftmaxWithLoss(Module):
-    def __init__(self, in_features, n_classes, cutoffs, div_value=4., head_bias=False):
+    def __init__(self, in_features, n_classes, cutoffs, div_value=4., head_bias=False, tail_drop=0.5):
         super(AdaptiveLogSoftmaxWithLoss, self).__init__()
 
         cutoffs = list(cutoffs)
@@ -198,6 +199,7 @@ class AdaptiveLogSoftmaxWithLoss(Module):
         self.cutoffs = cutoffs + [n_classes]
         self.div_value = div_value
         self.head_bias = head_bias
+        self.tail_drop = tail_drop
 
         self.shortlist_size = self.cutoffs[0]
         self.n_clusters = len(self.cutoffs) - 1
@@ -214,7 +216,7 @@ class AdaptiveLogSoftmaxWithLoss(Module):
             projection = Sequential(
                 Linear(self.in_features, hsz, bias=False),
                 Linear(hsz, osz, bias=False),
-                nn.Dropout(0.3)
+                nn.Dropout(self.tail_drop)
             )
 
             self.tail.append(projection)
