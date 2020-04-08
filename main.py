@@ -109,14 +109,15 @@ ntokens = len(corpus.dictionary)
 if not adaptive:
     model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.emb_dropout, args.tied).to(device)
 else:
-    model = model.AdaptiveSoftmaxRNN(
+    model = model.AdaptiveSoftmaxRNNImproved(
         ntokens,
         args.emsize,
         args.nhid, 
         args.nlayers, 
-        args.emb_dropout, 
-        args.rnn_dropout,
-        args.tail_dropout,
+        emb_dropout = args.emb_dropout,
+        out_dropout = 0.5,
+        rnn_dropout = args.rnn_dropout,
+        tail_dropout = args.tail_dropout,
         cutoffs=[20000, 50000],
         tie_weights = args.tied
       ).to(device)
