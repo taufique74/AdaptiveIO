@@ -53,7 +53,7 @@ class RNNModel(nn.Module):
 class AdaptiveSoftmaxRNN(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, ntoken, ninp, nhid, nlayers, emb_dropout=0.0, rnn_dropout=0.2, tail_droput=0.5, cutoffs=[20000, 50000], tie_weights=True):
+    def __init__(self, ntoken, ninp, nhid, nlayers, emb_dropout=0.0, rnn_dropout=0.2, tail_dropout=0.5, cutoffs=[20000, 50000], tie_weights=True):
         super(AdaptiveSoftmaxRNN, self).__init__()
         ntoken = ntoken
         self.emb_dropout = nn.Dropout(emb_dropout)
