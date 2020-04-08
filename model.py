@@ -83,7 +83,7 @@ class AdaptiveSoftmaxRNN(nn.Module):
     def forward(self, input, hidden, targets):
         emb = self.emb_dropout(self.encoder(input)) # (seq_len, bsz, ninp)
         output, hidden = self.rnn(emb, hidden) # (seq_len, bsz, ninp)
-        output = self.drop(output)
+        output = self.emb_dropout(output)
         output = output.view(-1,output.size(2)) # (seq_len*bsz, ninp)
         # output = output.transpose(0,1)
         # targets = targets.view(targets.size(0) * targets.size(1)) # (seq_len * bsz)
