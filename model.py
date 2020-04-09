@@ -65,10 +65,12 @@ class RNNModel(nn.Module):
             return weight.new_zeros(self.nlayers, bsz, self.nhid)
 
 class AWD_LSTM(nn.LSTM):
-    def __init__(self, *args, dropouti: float=0.,
-                 dropoutw: float=0.,
-                 dropouto: float=0.,
+    def __init__(self, *args, 
+                 dropouti: float=0.5,
+                 dropoutw: float=0.5,
+                 dropouto: float=0.5,
                  unit_forget_bias=True, **kwargs):
+
         super().__init__(*args, **kwargs)
         self.unit_forget_bias = unit_forget_bias
         self.dropoutw = dropoutw
@@ -163,7 +165,7 @@ class AdaptiveSoftmaxRNNImproved(nn.Module):
         self.out_dropout = nn.Dropout(out_dropout)
         
         self.encoder = AdaptiveInput(ninp, ntoken, cutoffs, tail_drop=tail_dropout)
-        self.rnn = AWD_LSTM(ninp, nhid, num_layers=nlayers, dropouti=0.3, dropouto=0.3, dropoutw=rnn_dropout)
+        self.rnn = AWD_LSTM(ninp, nhid, num_layers=nlayers, dropouti=0.1, dropouto=0.1, dropoutw=rnn_dropout)
         
         self.decoder = AdaptiveLogSoftmaxWithLoss(nhid, ntoken, cutoffs=cutoffs, div_value=2.0, tail_drop=tail_dropout)
         self.init_weights()
