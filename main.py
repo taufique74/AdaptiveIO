@@ -33,11 +33,13 @@ parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
-parser.add_argument('--emb_dropout', type=float, default=0.0,
+parser.add_argument('--emb_dropout', type=float, default=0.1,
                     help='dropout applied to embedding')
 parser.add_argument('--rnn_dropout', type=float, default=0.2,
                     help='dropout applied to rnn layers')
-parser.add_argument('--tail_dropout', type=float, default=0.5,
+parser.add_argument('--out_dropout', type=float, default=0.3,
+                    help='dropout on the output of rnn')
+parser.add_argument('--tail_dropout', type=float, default=0.3,
                     help='dropout applied to tail clusters')
 parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
@@ -115,7 +117,7 @@ else:
         args.nhid, 
         args.nlayers, 
         emb_dropout = args.emb_dropout,
-        out_dropout = 0.5,
+        out_dropout = args.out_dropout,
         rnn_dropout = args.rnn_dropout,
         tail_dropout = args.tail_dropout,
         cutoffs=[20000, 50000],

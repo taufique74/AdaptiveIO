@@ -156,15 +156,15 @@ class AdaptiveSoftmaxRNN(nn.Module):
 class AdaptiveSoftmaxRNNImproved(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, ntoken, ninp, nhid, nlayers, emb_dropout=0.0, out_dropout=0.5, rnn_dropout=0.2, tail_dropout=0.5, cutoffs=[20000, 50000], tie_weights=True):
+    def __init__(self, ntoken, ninp, nhid, nlayers, emb_dropout=0.1, out_dropout=0.4, rnn_dropout=0.3, tail_dropout=0.3, cutoffs=[20000, 50000], tie_weights=True):
         super().__init__()
         ntoken = ntoken
-        self.emb_dropout = VariationalDropout(emb_dropout)
-        self.out_dropout = VariationalDropout(out_dropout)
-        # self.encoder = nn.Embedding(ntoken, ninp)
+        self.emb_dropout = nn.Dropout(emb_dropout)
+        self.out_dropout = nn.Dropout(out_dropout)
+        
         self.encoder = AdaptiveInput(ninp, ntoken, cutoffs, tail_drop=tail_dropout)
         self.rnn = AWD_LSTM(ninp, nhid, num_layers=nlayers, dropouti=0.3, dropouto=0.3, dropoutw=rnn_dropout)
-        # self.decoder = nn.Linear(nhid, ntoken)
+        
         self.decoder = AdaptiveLogSoftmaxWithLoss(nhid, ntoken, cutoffs=cutoffs, div_value=2.0, tail_drop=tail_dropout)
         self.init_weights()
         self.nhid = nhid
