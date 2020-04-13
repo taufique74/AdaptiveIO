@@ -116,9 +116,10 @@ class AdaptiveSoftmaxRNN(nn.Module):
         self.emb_dropout = nn.Dropout(emb_dropout)
         self.out_dropout = nn.Dropout(0.5)
         if adaptive_input:
-            self.encoder = nn.Embedding(ntoken, ninp)
-        else:
             self.encoder = AdaptiveInput(ninp, ntoken, cutoffs, tail_drop=tail_dropout)
+        else:
+            self.encoder = nn.Embedding(ntoken, ninp)
+            
         self.rnn = nn.LSTM(ninp, nhid, nlayers, dropout=rnn_dropout)
         # self.decoder = nn.Linear(nhid, ntoken)
         self.decoder = AdaptiveLogSoftmaxWithLoss(nhid, ntoken, cutoffs=cutoffs, div_value=2.0, tail_drop=tail_dropout)
