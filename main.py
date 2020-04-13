@@ -110,7 +110,7 @@ test_data = batchify(corpus.test, eval_batch_size)
 ntokens = len(corpus.dictionary)
 if not adaptive:
     model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.emb_dropout, args.tied).to(device)
-else:
+elif args.model == 'AWD':
     model = model.AdaptiveSoftmaxRNNImproved(
         ntokens,
         args.emsize,
@@ -123,6 +123,19 @@ else:
         cutoffs=[20000, 50000],
         tie_weights = args.tied
       ).to(device)
+elif args.model == 'LSTM':
+    model = model.AdaptiveSoftmaxRNN(
+        ntokens,
+        args.emsize,
+        args.nhid,
+        args.nlayers,
+        emb_dropout = args.emb_dropout,
+        rnn_dropout = args.rnn_dropout,
+        tail_dropout = args.tail_dropout,
+        cutoffs = [20000, 50000],
+        tie_weights = args.tied,
+        adaptive_input=True
+    ).to(device)
 
 criterion = nn.NLLLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)

@@ -110,13 +110,15 @@ class AWD_LSTM(nn.LSTM):
 class AdaptiveSoftmaxRNN(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, ntoken, ninp, nhid, nlayers, emb_dropout=0.0, rnn_dropout=0.2, tail_dropout=0.5, cutoffs=[20000, 50000], tie_weights=True):
+    def __init__(self, ntoken, ninp, nhid, nlayers, emb_dropout=0.0, rnn_dropout=0.2, tail_dropout=0.5, cutoffs=[20000, 50000], tie_weights=False, adaptive_input=False):
         super(AdaptiveSoftmaxRNN, self).__init__()
         ntoken = ntoken
         self.emb_dropout = nn.Dropout(emb_dropout)
         self.out_dropout = nn.Dropout(0.5)
-        # self.encoder = nn.Embedding(ntoken, ninp)
-        self.encoder = AdaptiveInput(ninp, ntoken, cutoffs, tail_drop=tail_dropout)
+        if adaptive_input:
+            self.encoder = nn.Embedding(ntoken, ninp)
+        else:
+            self.encoder = AdaptiveInput(ninp, ntoken, cutoffs, tail_drop=tail_dropout)
         self.rnn = nn.LSTM(ninp, nhid, nlayers, dropout=rnn_dropout)
         # self.decoder = nn.Linear(nhid, ntoken)
         self.decoder = AdaptiveLogSoftmaxWithLoss(nhid, ntoken, cutoffs=cutoffs, div_value=2.0, tail_drop=tail_dropout)
@@ -125,7 +127,7 @@ class AdaptiveSoftmaxRNN(nn.Module):
         self.nlayers = nlayers
         
         # weight sharing as described in the paper
-        if tie_weights:
+        if tie_weights and adaptive_input:
             for i in range(len(cutoffs)):
                 self.encoder.tail[i][0].weight = self.decoder.tail[i][1].weight
               
