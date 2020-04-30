@@ -272,7 +272,7 @@ best_val_loss = None
 try:
     if not args.no_log:
       name = f'b{args.batch_size}_lr{args.lr}_L{args.nlayers}_h{args.nhid}_em{args.emsize}_drp{args.rnn_dropout}_bptt{args.bptt}'
-      wandb.init(name=name, project="AdaptiveIO")
+      wandb.init(name=name, project="5m_line_shuffled")
       wandb.config.update(args)
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
@@ -290,21 +290,29 @@ try:
         
         # Save the model if the validation loss is the best we've seen so far.
         if not args.no_save:
+          if not os.path.exists(args.save):
+              os.mkdir(args.save)
           if not best_val_loss or val_loss < best_val_loss:
               best_val_loss = val_loss
               print('saving model...')
-              # torch.save({
-              #   'epoch': epoch,
-              #   'model_state_dict': model.state_dict(),
-              #   'lr': lr,
-              #   'loss': val_loss
-              # }, f'{args.save}/model_epoch{epoch}_valppl{math.exp(val_loss)}.pt')
-              if os.path.exists(args.save):
-                  torch.save(model, f'{args.save}/model_epoch{epoch}_valppl{math.exp(val_loss)}_.pt')
-              else:
-                  os.mkdir(args.save)
-                  torch.save(model, f'{args.save}/model_epoch{epoch}_valppl{math.exp(val_loss)}_.pt')
+              torch.save(model, f'{args.save}/best_model.pt')
+              torch.save({
+                  'epoch': epoch,
+                  'model_state_dict': model.state_dict(),
+                  'optimizer_state_dict': optimizer.state_dict(),
+                  'val_loss': val_loss,
+                  'val_ppl': val_ppl
+              }, f'{args.save}/best_model_checkpoint.pt')
+              
 
+          else:
+              torch.save({
+                  'epoch': epoch,
+                  'model_state_dict': model.state_dict(),
+                  'optimizer_state_dict': optimizer.state_dict(),
+                  'val_loss': val_loss,
+                  'val_ppl':val_ppl
+            }, f'{args.save}/checkpoint.pt')
         # else:
             # Anneal t
 #             # Anneal the learning rate if no improvement has been seen in the validation dataset.
