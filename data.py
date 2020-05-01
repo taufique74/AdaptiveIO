@@ -58,8 +58,8 @@ class Dictionary(object):
         return len(self.idx2word)
 
 class Corpus(object):
-    def __init__(self, path):
-        self.dictionary = Dictionary()
+    def __init__(self, path, min_freq=2, add_eos=False):
+        self.dictionary = Dictionary(min_freq, add_eos)
         train_path = os.path.join(path, 'train.txt')
         test_path = os.path.join(path, 'test.txt')
         valid_path = os.path.join(path, 'valid.txt')
@@ -83,7 +83,10 @@ class Corpus(object):
                 words = line.split()
                 ids = []
                 for word in words:
-                    ids.append(self.dictionary.word2idx[word])
+                    if word in self.dictionary.word2idx:
+                        ids.append(self.dictionary.word2idx[word])
+                    else:
+                        ids.append(self.dictionary.word2idx['<unk>'])
                 idss.append(torch.tensor(ids).type(torch.int64))
             ids = torch.cat(idss)
         
