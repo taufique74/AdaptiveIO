@@ -15,6 +15,10 @@ import wandb
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM/GRU/Transformer Language Model')
 parser.add_argument('--data', type=str, default='./data/wikitext-2',
                     help='location of the data corpus')
+parser.add_argument('--min_freq', type=int, default=2,
+                    help='minimum frequency for a word in the corpus to get included in the vocabulary')
+parser.add_argument('--add_eos', action='store_true',
+                    help='whether to add and <eos> token after a training sample')                    
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU, Transformer)')
 parser.add_argument('--emsize', type=int, default=200,
@@ -81,10 +85,14 @@ device = torch.device("cuda" if args.cuda else "cpu")
 
 vocab_cache = f'{args.data}/vocab.pickle'
 if(os.path.exists(vocab_cache)):
+    print('[#] Found vocab cache in the corpus directory')
+    print('[#] Loading the cache...')
     with open(vocab_cache, 'rb') as f:
         corpus = pickle.load(f)
 else:
-    corpus = data.Corpus(args.data)
+    print('[#] No vocab cache found!')
+    print('[#] Building the vocabulary...')
+    corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
     with open(vocab_cache, 'wb') as f:
         pickle.dump(corpus, f)
 
