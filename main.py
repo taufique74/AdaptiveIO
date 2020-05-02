@@ -46,6 +46,8 @@ parser.add_argument('--out_dropout', type=float, default=0.3,
                     help='dropout on the output of rnn')
 parser.add_argument('--tail_dropout', type=float, default=0.3,
                     help='dropout applied to tail clusters')
+parser.add_argument('--cutoffs', type=str, default='20000 50000',
+                    help='Cutoff values for adaptive input and adaptive softmax')
 parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--seed', type=int, default=1111,
@@ -76,12 +78,12 @@ if torch.cuda.is_available():
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
-# save the arguments
+# save the arguments in a json file
 with open(os.path.join(args.save, 'options.json'), 'w') as f:
     json.dump(args.__dict__, f)
 
 ###############################################################################
-# Load data
+# Load data and vocabulary
 ###############################################################################
 vocab_cache = f'{args.save}/vocab.pickle'
 
@@ -117,6 +119,8 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 
 ntokens = len(corpus.dictionary)
+cutoffs = [int(cutoff) for cutoff in args.cutoffs.split()
+          ]
 if not adaptive:
     model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.emb_dropout, args.tied).to(device)
 elif args.model == 'AWD':
@@ -129,7 +133,7 @@ elif args.model == 'AWD':
         out_dropout = args.out_dropout,
         rnn_dropout = args.rnn_dropout,
         tail_dropout = args.tail_dropout,
-        cutoffs=[20000, 50000],
+        cutoffs = cutoffs,
         tie_weights = args.tied
       ).to(device)
 elif args.model == 'LSTM':
@@ -141,7 +145,7 @@ elif args.model == 'LSTM':
         emb_dropout = args.emb_dropout,
         rnn_dropout = args.rnn_dropout,
         tail_dropout = args.tail_dropout,
-        cutoffs = [20000, 50000],
+        cutoffs = cutoffs,
         tie_weights = args.tied,
         adaptive_input=True
     ).to(device)
