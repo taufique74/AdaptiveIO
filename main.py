@@ -59,11 +59,9 @@ parser.add_argument('--no_save', action='store_true',
                     help='whether to save models or not')                                      
 parser.add_argument('--save', type=str, default='checkpoints',
                     help='path to save the final model')
-parser.add_argument('--onnx-export', type=str, default='',
-                    help='path to export the final model in onnx format')
+parser.add_argument('--patience', type=int, default=0,
+                    help='LR Scheduler patience')
 
-parser.add_argument('--nhead', type=int, default=2,
-                    help='the number of heads in the encoder/decoder of the transformer model')
 
 args = parser.parse_args()
 
@@ -80,10 +78,8 @@ device = torch.device("cuda" if args.cuda else "cpu")
 ###############################################################################
 # Load data
 ###############################################################################
-
-# corpus = data.Corpus(args.data)
-
 vocab_cache = f'{args.data}/vocab.pickle'
+
 if(os.path.exists(vocab_cache)):
     print('[#] Found vocab cache in the corpus directory')
     print('[#] Loading the cache...')
@@ -151,7 +147,7 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer = optimizer,
     mode = 'min',
     factor = 0.5,
-    patience = 1,
+    patience = args.patience,
     verbose = True,
     min_lr = 1.0
 )
@@ -266,7 +262,7 @@ def train():
                 elapsed * 1000 / args.log_interval, cur_loss, ppl))
             
             if not args.no_log:
-              wandb.log({'Perplexity': ppl, 'Loss': cur_loss})
+                wandb.log({'Perplexity': ppl, 'Loss': cur_loss})
             
             total_loss = 0
             start_time = time.time()
@@ -279,9 +275,9 @@ best_val_loss = None
 # At any point you can hit Ctrl + C to break out of training early.
 try:
     if not args.no_log:
-      name = f'b{args.batch_size}_lr{args.lr}_L{args.nlayers}_h{args.nhid}_em{args.emsize}_drp{args.rnn_dropout}_bptt{args.bptt}'
-      wandb.init(name=name, project="5m_line_shuffled")
-      wandb.config.update(args)
+        name = f'b{args.batch_size}_lr{args.lr}_L{args.nlayers}_h{args.nhid}_em{args.emsize}_drp{args.rnn_dropout}_bptt{args.bptt}'
+        wandb.init(name=name, project="5m_line_shuffled")
+        wandb.config.update(args)
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
         train()
@@ -294,37 +290,39 @@ try:
         print('-' * 89)
         
         if not args.no_log:
-          wandb.log({'val_ppl': val_ppl, 'val_loss': val_loss})
+            wandb.log({'val_ppl': val_ppl, 'val_loss': val_loss})
         
         # Save the model if the validation loss is the best we've seen so far.
         if not args.no_save:
-          if not os.path.exists(args.save):
-              os.mkdir(args.save)
-          if not best_val_loss or val_loss < best_val_loss:
-              best_val_loss = val_loss
-              print('saving model...')
-              torch.save(model, f'{args.save}/best_model.pt')
-              torch.save({
-                  'epoch': epoch,
-                  'model_state_dict': model.state_dict(),
-                  'optimizer_state_dict': optimizer.state_dict(),
-                  'val_loss': val_loss,
-                  'val_ppl': val_ppl
-              }, f'{args.save}/best_model_checkpoint.pt')
-              
+            # create the destination directory if it doesn't exist
+            if not os.path.exists(args.save):
+                os.mkdir(args.save)
+            
+            # check if the current loss is the best validation loss
+            if not best_val_loss or val_loss < best_val_loss:
+                best_val_loss = val_loss
 
-          else:
-              torch.save({
-                  'epoch': epoch,
-                  'model_state_dict': model.state_dict(),
-                  'optimizer_state_dict': optimizer.state_dict(),
-                  'val_loss': val_loss,
-                  'val_ppl':val_ppl
-            }, f'{args.save}/checkpoint.pt')
-        # else:
-            # Anneal t
-#             # Anneal the learning rate if no improvement has been seen in the validation dataset.
-#             lr /= 4.0
+                # save the best model
+                print('saving model...')
+                torch.save(model, f'{args.save}/best_model.pt')
+
+                # also save the checkpoint for the best model
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'val_loss': val_loss,
+                    'val_ppl': val_ppl
+                }, f'{args.save}/best_model_checkpoint.pt')
+            else:
+                # this saves the checkpoint for every epoch
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'val_loss': val_loss,
+                    'val_ppl':val_ppl
+                }, f'{args.save}/checkpoint.pt')
         
         scheduler.step(val_loss)
         
