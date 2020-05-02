@@ -81,7 +81,7 @@ if(os.path.exists(vocab_cache)):
         corpus = pickle.load(f)
 else:
     print(f'[#] No vocab cache found in {args.save}!')
-    print('[#] Building the vocabulary and saving voca cache...')
+    print('[#] Building the vocabulary and saving vocab cache...')
     corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
     with open(vocab_cache, 'wb') as f:
         pickle.dump(corpus, f)
