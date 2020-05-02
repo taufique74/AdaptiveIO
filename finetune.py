@@ -49,7 +49,7 @@ for key in args.__dict__:
         finetune_args[key] = value
 
 # load the args `model_info.json` that are saved in the same directory as `best_model_checkpoint.pt`
-with open(os.path.join(args.save, 'model_info.json'), 'r') as f:
+with open(os.path.join(args.save, 'options.json'), 'r') as f:
     arguments = dict(json.load(f))
 
 # replace the loaded args with `finetune_args` that are configurable while finetuning
