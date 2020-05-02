@@ -11,9 +11,10 @@ import data
 import model
 import pickle
 import wandb
+import json
 
-parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM/GRU/Transformer Language Model')
-parser.add_argument('--data', type=str, default='./data/wikitext-2',
+parser = argparse.ArgumentParser(description='PyTorch Language Model')
+parser.add_argument('--data', type=str, default='data',
                     help='location of the data corpus')
 parser.add_argument('--min_freq', type=int, default=2,
                     help='minimum frequency for a word in the corpus to get included in the vocabulary')
@@ -75,10 +76,14 @@ if torch.cuda.is_available():
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
+# save the arguments
+with open(os.path.join(args.save, 'options.json'), 'w') as f:
+    json.dump(args.__dict__, f)
+
 ###############################################################################
 # Load data
 ###############################################################################
-vocab_cache = f'{args.data}/vocab.pickle'
+vocab_cache = f'{args.save}/vocab.pickle'
 
 if(os.path.exists(vocab_cache)):
     print('[#] Found vocab cache in the corpus directory')
