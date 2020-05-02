@@ -15,16 +15,15 @@ import json
 from pprint import pprint
 
 parser = argparse.ArgumentParser(description='PyTorch Language Model')
-parser.add_argument('--data', type=str, default='./data/wikitext-2',
-                    help='location of the data corpus')                 
-parser.add_argument('--lr', type=float, default=20,
-                    help='initial learning rate')
-parser.add_argument('--epochs', type=int, default=40,
-                    help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=20, metavar='N',
+parser.add_argument('--data', type=str, default='data',
+                    help='location of the data corpus')
+parser.add_argument('--batch_size', type=int, metavar='N',
                     help='batch size')
-parser.add_argument('--bptt', type=int, default=35,
-                    help='sequence length')
+parser.add_argument('--bptt', type=int, help='sequence length')
+parser.add_argument('--lr', type=float,
+                    help='initial learning rate')
+parser.add_argument('--epochs', type=int, default=100,
+                    help='upper epoch limit')
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
 parser.add_argument('--log-interval', type=int, default=200, metavar='N',
@@ -35,17 +34,19 @@ parser.add_argument('--no_save', action='store_true',
                     help='whether to save models or not')                                      
 parser.add_argument('--save', type=str, default='checkpoints',
                     help='path to save the final model')
-
-parser.add_argument('--patience' type=int, default=0,
-                    help='LR Scheduler patience')                    
+parser.add_argument('--patience', type=int, default=2,
+                    help='LR Scheduler patience')
 
 args = parser.parse_args()
 
-# adaptive input and output
 adaptive = True
 
 # save the configurable args before replacing with the saved checkpoint args
-finetune_args = args.__dict__
+finetune_args = {}
+for key in args.__dict__:
+    value = args.__dict__[key]
+    if value is not None:
+        finetune_args[key] = value
 
 # load the args `model_info.json` that are saved in the same directory as `best_model_checkpoint.pt`
 with open(os.path.join(args.save, 'model_info.json'), 'r') as f:
@@ -55,9 +56,8 @@ with open(os.path.join(args.save, 'model_info.json'), 'r') as f:
 for key in finetune_args.keys():
     arguments[key] = finetune_args[key]
 
-# now set predefined model arguments along with new configurable arguments
+# now set predefined model arguments and new configurable arguments
 args.__dict__ = arguments
-
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -66,13 +66,14 @@ if torch.cuda.is_available():
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
 # device = torch.device("cuda" if args.cuda else "cpu")
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = torch.device('cuda' if args.cuda else 'cpu')
 
 ###############################################################################
 # Load data
 ###############################################################################
-vocab_cache = f'{args.save}/vocab.pickle'
 
+
+vocab_cache = f'{args.save}/vocab.pickle'
 if(os.path.exists(vocab_cache)):
     print(f'[#] Found vocab cache in the {args.save} directory')
     print('[#] Loading vocabulary from the cache...')
@@ -103,6 +104,7 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 # Build the model
 ###############################################################################
+
 ntokens = len(corpus.dictionary)
 
 if args.model == 'AWD':
@@ -115,7 +117,7 @@ if args.model == 'AWD':
         out_dropout = args.out_dropout,
         rnn_dropout = args.rnn_dropout,
         tail_dropout = args.tail_dropout,
-        cutoffs=[20000, 50000],
+        cutoffs=args.cutoffs,
         tie_weights = args.tied
       ).to(device)
 elif args.model == 'LSTM':
@@ -132,46 +134,80 @@ elif args.model == 'LSTM':
         adaptive_input=True
     ).to(device)
 
-
 criterion = nn.NLLLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
+
+# N.B. this learning rate is just to initialize the optimizer
+# later it will be changed according to either the argument or 
+# optimizer state_dict from the loaded checkpoint
+optimizer = torch.optim.SGD(model.parameters(), lr=5)
+
+###############################################################################
+# Load checkpoint and optimizer state
+###############################################################################
+
+# load the checkpoint
+print('[#] Loading the checkpoint...')
+
+ckpt_path = os.path.join(args.save, 'best_model_checkpoint.pt')
+checkpoint = torch.load(ckpt_path, map_location=device)
+
+print('[*] Checkpoint info: ')
+# pprint(checkpoint[''])
+print(f'[#] Validation Loss: {checkpoint["val_loss"]}')
+print(f'[#] Validation Perplexity: {checkpoint["val_ppl"]}')
+print(f'[#] Current Epoch: {checkpoint["epoch"]}')
+
+
+# load the state_dict dictionaries
+model_state_dict = checkpoint['model_state_dict']
+optimizer_state_dict = checkpoint['optimizer_state_dict']
+
+
+# load the model state dict
+model.load_state_dict(model_state_dict)
+
+# load the optimizer state dict
+optimizer.load_state_dict(optimizer_state_dict)
+
+# get the current epoch of the checkpoint
+current_epoch = checkpoint['epoch']
+
+# validation loss of the checkpoint
+best_val_loss = checkpoint['val_loss']
+
+# load the optimizer state dict
+optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+if args.lr:
+    print(f'[#] Using given learning rate {args.lr}')
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = args.lr
+else:
+    # if no learning rate is given, use the current lr of checkpoint optimizer
+    current_lr = optimizer.state_dict()['param_groups'][0]['lr']
+    print(f'[#] Since no learning rate is given, using the checkpoint current learning rate: {current_lr}')
+
+# learning rate scheduler
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer = optimizer,
     mode = 'min',
     factor = 0.5,
     patience = args.patience,
     verbose = True,
-    min_lr = 1.0
+    min_lr = 3.0
 )
 
-# load the checkpoint
-ckpt_path = os.path.join(args.save, 'best_model_checkpoint.pt')
-checkpoint = torch.load(ckpt_path, map_location=torch.device(device))
-
-# load the state_dict dictionaries
-model_state_dict = checkpoint['model_state_dict']
-optimizer_state_dict = checkpoint['optimizer_state_dict']
-
-# load the state_dict from checkpoint into the model
-model.load_state_dict(model_state_dict)
-optimizer.load_state_dict(optimizer_state_dict)
-
-# get the current epoch of the checkpoint
-current_epoch = checkpoint['epoch']
-
-# load the optimizer state dict
-optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 total_tokens = corpus.dictionary.total_tokens
 vocabulary = len(corpus.dictionary)
-print(f'total tokens: {total_tokens} ({millify(total_tokens)})')
-print(f'vocabulary size: {vocabulary} ({millify(vocabulary)})')
+print(f'[#] total tokens: {total_tokens} ({millify(total_tokens)})')
+print(f'[#] vocabulary size: {vocabulary} ({millify(vocabulary)})')
 print('-' * 89)
 print(model)
 total_params = sum(p.numel() for p in model.parameters())
 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-print(f'total params: {total_params} ({millify(total_params)})')
-print(f'trainable params: {trainable_params} ({millify(trainable_params)})')
+print(f'[#] total params: {total_params} ({millify(total_params)})')
+print(f'[#] trainable params: {trainable_params} ({millify(trainable_params)})')
 print('-' * 89)
 
 ###############################################################################
@@ -278,16 +314,19 @@ def train():
             start_time = time.time()
 
 
-# Loop over epochs.
-lr = args.lr
-best_val_loss = None
 
+
+
+print('#'*89)
 # At any point you can hit Ctrl + C to break out of training early.
 try:
+    # get the learning rate from optimizer state_dict
+    lr = optimizer.state_dict()['param_groups'][0]['lr']
+
     if not args.no_log:
-      name = f'b{args.batch_size}_lr{args.lr}_L{args.nlayers}_h{args.nhid}_em{args.emsize}_drp{args.rnn_dropout}_bptt{args.bptt}'
-      wandb.init(name=name, project="5m_line_shuffled")
-      wandb.config.update(args)
+        name = f'b{args.batch_size}_lr{args.lr}_L{args.nlayers}_h{args.nhid}_em{args.emsize}_drp{args.rnn_dropout}_bptt{args.bptt}'
+        wandb.init(name=name, project="5m_line_shuffled")
+        wandb.config.update(args)
 
     for epoch in range(current_epoch+1, args.epochs+1):
         epoch_start_time = time.time()
@@ -301,7 +340,7 @@ try:
         print('-' * 89)
         
         if not args.no_log:
-          wandb.log({'val_ppl': val_ppl, 'val_loss': val_loss})
+            wandb.log({'val_ppl': val_ppl, 'val_loss': val_loss})
         
         # Save the model if the validation loss is the best we've seen so far.
         if not args.no_save:
@@ -312,14 +351,19 @@ try:
             # check if the current loss is the best validation loss
             if not best_val_loss or val_loss < best_val_loss:
                 best_val_loss = val_loss
+
+                # save the best model
                 print('saving model...')
                 torch.save(model, f'{args.save}/best_model.pt')
+
+                # also save the checkpoint for the best model
                 torch.save({
                     'epoch': epoch,
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'val_loss': val_loss,
-                    'val_ppl': val_ppl
+                    'val_ppl': val_ppl,
+                    'lr': args.lr
                 }, f'{args.save}/best_model_checkpoint.pt')
             else:
                 # this saves the checkpoint for every epoch
@@ -328,10 +372,11 @@ try:
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'val_loss': val_loss,
-                    'val_ppl':val_ppl
+                    'val_ppl':val_ppl,
+                    'lr': args.lr
                 }, f'{args.save}/checkpoint.pt')
 
-        scheduler.step()
+        scheduler.step(val_loss)
         
 except KeyboardInterrupt:
     print('-' * 89)
