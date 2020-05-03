@@ -57,9 +57,9 @@ parser.add_argument('--cuda', action='store_true',
 parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--no_log', action='store_true',
-                    help='whether to log in wandb')
+                    help='don\'t log')
 parser.add_argument('--no_save', action='store_true',
-                    help='whether to save models or not')                                      
+                    help='don\'t save any model or checkpoints')                                      
 parser.add_argument('--save', type=str, default='checkpoints',
                     help='path to save the final model')
 parser.add_argument('--patience', type=int, default=0,
@@ -87,7 +87,7 @@ with open(os.path.join(args.save, 'options.json'), 'w') as f:
 ###############################################################################
 # Load data and vocabulary
 ###############################################################################
-vocab_cache = f'{args.save}/vocab.pickle'
+vocab_cache = f'{args.data}/vocab.pickle'
 
 if(os.path.exists(vocab_cache)):
     print('[#] Found vocab cache in the corpus directory')
@@ -96,6 +96,11 @@ if(os.path.exists(vocab_cache)):
         vocab_cache = pickle.load(f)
     print('[#] Loading the corpus..')
     corpus = data.Corpus(args.data, args.min_freq, args.add_eos, vocab_cache)
+    cache = {
+    'idx2word': corpus.dictionary.idx2word,
+    'word2idx': corpus.dictionary.word2idx,
+    'total_tokens': corpus.dictionary.total_tokens
+    }
     
 else:
     print('[#] No vocab cache found!')
@@ -110,11 +115,7 @@ else:
         }
         pickle.dump(cache, f)
 
-cache = {
-    'idx2word': corpus.dictionary.idx2word,
-    'word2idx': corpus.dictionary.word2idx,
-    'total_tokens': corpus.dictionary.total_tokens
-}
+
 
 
 def batchify(data, bsz):
