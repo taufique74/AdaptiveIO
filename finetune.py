@@ -34,9 +34,13 @@ parser.add_argument('--no_log', action='store_true',
 parser.add_argument('--no_save', action='store_true',
                     help='whether to save models or not')                                      
 parser.add_argument('--save', type=str, default='checkpoints',
-                    help='path to save the final model')
+                    help='Path to save the final model')
 parser.add_argument('--patience', type=int, default=2,
                     help='LR Scheduler patience')
+parser.add_argument('--config', type=str, default='options.json',
+                   help='Name of the file that contains all the configurations')
+parser.add_argument('--ckpt', type=str, default='best_model_checkpoint.pt',
+                   help='Name of the checkpoint file')
 
 args = parser.parse_args()
 
@@ -49,8 +53,15 @@ for key in args.__dict__:
     if value is not None:
         finetune_args[key] = value
 
-# load the args `model_info.json` that are saved in the same directory as `best_model_checkpoint.pt`
-with open(os.path.join(args.save, 'options.json'), 'r') as f:
+# check whether the config file exists or not
+config_file = os.path.join(args.save, args.config)
+if not os.path.exists(config_file):
+    print(f'[#] Config file "{args.config}" not found inside "{args.save}" directory')
+    print('[x] Exiting ...')
+    sys.exit()
+
+# load the args `options.json` that are saved in the same directory as `best_model_checkpoint.pt`
+with open(os.path.join(args.save, args.config), 'r') as f:
     arguments = dict(json.load(f))
 
 # replace the loaded args with `finetune_args` that are configurable while finetuning
@@ -75,7 +86,7 @@ device = torch.device('cuda' if args.cuda else 'cpu')
 # load the checkpoint
 print('[#] Loading the checkpoint...')
 
-ckpt_path = os.path.join(args.save, 'best_model_checkpoint.pt')
+ckpt_path = os.path.join(args.save, args.ckpt)
 checkpoint = torch.load(ckpt_path, map_location=device)
 
 # vocab_cache = f'{args.save}/vocab.pickle'
@@ -144,16 +155,16 @@ elif args.model == 'LSTM':
         emb_dropout = args.emb_dropout,
         rnn_dropout = args.rnn_dropout,
         tail_dropout = args.tail_dropout,
-        cutoffs = [20000, 50000],
+        cutoffs = args.cutoffs,
         tie_weights = args.tied,
         adaptive_input=True
     ).to(device)
 
 criterion = nn.NLLLoss()
 
-# N.B. this learning rate is just to initialize the optimizer
-# later it will be changed according to either the argument or 
-# optimizer state_dict from the loaded checkpoint
+# N.B. this learning rate 5 is just to initialize the optimizer
+# later it will be changed according to either the given argument 
+# or the optimizer state_dict from the loaded checkpoint
 optimizer = torch.optim.SGD(model.parameters(), lr=5)
 
 ###############################################################################
