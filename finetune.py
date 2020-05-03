@@ -185,8 +185,8 @@ best_val_loss = checkpoint['val_loss']
 # load the optimizer state dict
 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
-if args.lr:
-    print(f'[#] Using given learning rate {args.lr}')
+if 'lr' in finetune_args.keys():
+    print(f'[#] Using given learning rate {finetune_args["lr"]}')
     for param_group in optimizer.param_groups:
         param_group['lr'] = args.lr
 else:
