@@ -12,6 +12,7 @@ import model
 import pickle
 import wandb
 import json
+import sys
 from pprint import pprint
 
 parser = argparse.ArgumentParser(description='PyTorch Language Model')
@@ -69,22 +70,35 @@ if torch.cuda.is_available():
 device = torch.device('cuda' if args.cuda else 'cpu')
 
 ###############################################################################
-# Load data
+# Load data and checkpoint
 ###############################################################################
+# load the checkpoint
+print('[#] Loading the checkpoint...')
 
+ckpt_path = os.path.join(args.save, 'best_model_checkpoint.pt')
+checkpoint = torch.load(ckpt_path, map_location=device)
 
-vocab_cache = f'{args.save}/vocab.pickle'
-if(os.path.exists(vocab_cache)):
-    print(f'[#] Found vocab cache in the {args.save} directory')
-    print('[#] Loading vocabulary from the cache...')
-    with open(vocab_cache, 'rb') as f:
-        corpus = pickle.load(f)
-else:
-    print(f'[#] No vocab cache found in {args.save}!')
-    print('[#] Building the vocabulary and saving vocab cache...')
-    corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
-    with open(vocab_cache, 'wb') as f:
-        pickle.dump(corpus, f)
+# vocab_cache = f'{args.save}/vocab.pickle'
+# if(os.path.exists(vocab_cache)):
+#     print(f'[#] Found vocab cache in the {args.save} directory')
+#     print('[#] Loading vocabulary from the cache...')
+#     with open(vocab_cache, 'rb') as f:
+#         corpus = pickle.load(f)
+# else:
+#     print(f'[#] No vocab cache found in {args.save}!')
+# #     print('[#] Building the vocabulary and saving vocab cache...')
+# #     corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
+# #     with open(vocab_cache, 'wb') as f:
+# #         pickle.dump(corpus, f)
+#     print('[x] Exiting...')
+#     sys.exit()
+
+# retrieve the vocabulary from checkpoint
+cache = checkpoint['vocabulary']
+
+# load the corpus
+print('[#] loading the corpus..')
+corpus = data.Corpus(args.data, args.min_freq, args.add_eos, cache)
 
 
 def batchify(data, bsz):
@@ -104,6 +118,7 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 # Build the model
 ###############################################################################
+
 
 ntokens = len(corpus.dictionary)
 
@@ -142,14 +157,10 @@ criterion = nn.NLLLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=5)
 
 ###############################################################################
-# Load checkpoint and optimizer state
+# Set model and optimizer state
 ###############################################################################
 
-# load the checkpoint
-print('[#] Loading the checkpoint...')
 
-ckpt_path = os.path.join(args.save, 'best_model_checkpoint.pt')
-checkpoint = torch.load(ckpt_path, map_location=device)
 
 print('[*] Checkpoint info: ')
 # pprint(checkpoint[''])
