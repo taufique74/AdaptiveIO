@@ -60,7 +60,7 @@ if not os.path.exists(config_file):
     print('[x] Exiting ...')
     sys.exit()
 
-# load the args `options.json` that are saved in the same directory as `best_model_checkpoint.pt`
+# load the configs `options.json` that are saved in the same directory as `best_model_checkpoint.pt`
 with open(os.path.join(args.save, args.config), 'r') as f:
     arguments = dict(json.load(f))
 
@@ -83,26 +83,11 @@ device = torch.device('cuda' if args.cuda else 'cpu')
 ###############################################################################
 # Load data and checkpoint
 ###############################################################################
+
 # load the checkpoint
 print('[#] Loading the checkpoint...')
-
 ckpt_path = os.path.join(args.save, args.ckpt)
 checkpoint = torch.load(ckpt_path, map_location=device)
-
-# vocab_cache = f'{args.save}/vocab.pickle'
-# if(os.path.exists(vocab_cache)):
-#     print(f'[#] Found vocab cache in the {args.save} directory')
-#     print('[#] Loading vocabulary from the cache...')
-#     with open(vocab_cache, 'rb') as f:
-#         corpus = pickle.load(f)
-# else:
-#     print(f'[#] No vocab cache found in {args.save}!')
-# #     print('[#] Building the vocabulary and saving vocab cache...')
-# #     corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
-# #     with open(vocab_cache, 'wb') as f:
-# #         pickle.dump(corpus, f)
-#     print('[x] Exiting...')
-#     sys.exit()
 
 # retrieve the vocabulary from checkpoint
 cache = checkpoint['vocabulary']
@@ -267,8 +252,7 @@ def evaluate(data_source):
     model.eval()
     total_loss = 0.
     ntokens = len(corpus.dictionary)
-    if args.model != 'Transformer':
-        hidden = model.init_hidden(eval_batch_size)
+    hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
         for i in range(0, data_source.size(0) - 1, args.bptt):
             data, targets = get_batch(data_source, i)
@@ -330,7 +314,7 @@ def train():
                 elapsed * 1000 / args.log_interval, cur_loss, ppl))
             
             if not args.no_log:
-              wandb.log({'Perplexity': ppl, 'Loss': cur_loss})
+                wandb.log({'Perplexity': ppl, 'Loss': cur_loss})
             
             total_loss = 0
             start_time = time.time()
