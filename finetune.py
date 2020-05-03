@@ -117,7 +117,7 @@ test_data = batchify(corpus.test, eval_batch_size)
 
 
 ntokens = len(corpus.dictionary)
-
+cutoffs = [int(cutoff) for cutoff in args.cutoffs.split()]
 if args.model == 'AWD':
     model = model.AdaptiveSoftmaxRNNImproved(
         ntokens,
@@ -128,7 +128,7 @@ if args.model == 'AWD':
         out_dropout = args.out_dropout,
         rnn_dropout = args.rnn_dropout,
         tail_dropout = args.tail_dropout,
-        cutoffs=args.cutoffs,
+        cutoffs=cutoffs,
         tie_weights = args.tied
       ).to(device)
 elif args.model == 'LSTM':
@@ -140,7 +140,7 @@ elif args.model == 'LSTM':
         emb_dropout = args.emb_dropout,
         rnn_dropout = args.rnn_dropout,
         tail_dropout = args.tail_dropout,
-        cutoffs = args.cutoffs,
+        cutoffs = cutoffs,
         tie_weights = args.tied,
         adaptive_input=True
     ).to(device)
