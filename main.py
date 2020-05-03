@@ -28,21 +28,21 @@ parser.add_argument('--nhid', type=int, default=200,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
-parser.add_argument('--lr', type=float, default=20,
+parser.add_argument('--lr', type=float, default=40,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=40,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=20, metavar='N',
+parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
-parser.add_argument('--emb_dropout', type=float, default=0.1,
+parser.add_argument('--emb_dropout', type=float, default=0.2,
                     help='dropout applied to embedding')
 parser.add_argument('--rnn_dropout', type=float, default=0.2,
                     help='dropout applied to rnn layers')
-parser.add_argument('--out_dropout', type=float, default=0.3,
+parser.add_argument('--out_dropout', type=float, default=0.5,
                     help='dropout on the output of rnn')
 parser.add_argument('--tail_dropout', type=float, default=0.3,
                     help='dropout applied to tail clusters')
@@ -79,6 +79,8 @@ if torch.cuda.is_available():
 device = torch.device("cuda" if args.cuda else "cpu")
 
 # save the arguments in a json file
+if not os.path.exists(args.save):
+    os.mkdir(args.save)
 with open(os.path.join(args.save, 'options.json'), 'w') as f:
     json.dump(args.__dict__, f)
 
@@ -89,15 +91,30 @@ vocab_cache = f'{args.save}/vocab.pickle'
 
 if(os.path.exists(vocab_cache)):
     print('[#] Found vocab cache in the corpus directory')
-    print('[#] Loading the cache...')
+    print('[#] Loading the vocab cache...')
     with open(vocab_cache, 'rb') as f:
-        corpus = pickle.load(f)
+        vocab_cache = pickle.load(f)
+    print('[#] Loading the corpus..')
+    corpus = data.Corpus(args.data, args.min_freq, args.add_eos, vocab_cache)
+    
 else:
     print('[#] No vocab cache found!')
-    print('[#] Building the vocabulary...')
+    print('[#] Loading the corpus and building the vocabulary...')
     corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
+    print('[#] Saving the vocabulary cache..')
     with open(vocab_cache, 'wb') as f:
-        pickle.dump(corpus, f)
+        cache = {
+            'idx2word': corpus.dictionary.idx2word,
+            'word2idx': corpus.dictionary.word2idx,
+            'total_tokens': corpus.dictionary.total_tokens
+        }
+        pickle.dump(cache, f)
+
+cache = {
+    'idx2word': corpus.dictionary.idx2word,
+    'word2idx': corpus.dictionary.word2idx,
+    'total_tokens': corpus.dictionary.total_tokens
+}
 
 
 def batchify(data, bsz):
@@ -119,8 +136,7 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 
 ntokens = len(corpus.dictionary)
-cutoffs = [int(cutoff) for cutoff in args.cutoffs.split()
-          ]
+cutoffs = [int(cutoff) for cutoff in args.cutoffs.split()]
 if not adaptive:
     model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.emb_dropout, args.tied).to(device)
 elif args.model == 'AWD':
@@ -163,14 +179,14 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
 
 total_tokens = corpus.dictionary.total_tokens
 vocabulary = len(corpus.dictionary)
-print(f'total tokens: {total_tokens} ({millify(total_tokens)})')
-print(f'vocabulary size: {vocabulary} ({millify(vocabulary)})')
+print(f'[#] total tokens: {total_tokens} ({millify(total_tokens)})')
+print(f'[#] vocabulary size: {vocabulary} ({millify(vocabulary)})')
 print('-' * 89)
 print(model)
 total_params = sum(p.numel() for p in model.parameters())
 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-print(f'total params: {total_params} ({millify(total_params)})')
-print(f'trainable params: {trainable_params} ({millify(trainable_params)})')
+print(f'[#] total params: {total_params} ({millify(total_params)})')
+print(f'[#] trainable params: {trainable_params} ({millify(trainable_params)})')
 print('-' * 89)
 
 ###############################################################################
@@ -321,7 +337,8 @@ try:
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'val_loss': val_loss,
-                    'val_ppl': val_ppl
+                    'val_ppl': val_ppl,
+                    'vocabulary': cache
                 }, f'{args.save}/best_model_checkpoint.pt')
             else:
                 # this saves the checkpoint for every epoch
@@ -330,7 +347,8 @@ try:
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'val_loss': val_loss,
-                    'val_ppl':val_ppl
+                    'val_ppl':val_ppl,
+                    'vocabulary': cache
                 }, f'{args.save}/checkpoint.pt')
         
         scheduler.step(val_loss)
