@@ -104,15 +104,6 @@ else:
         'total_tokens': corpus.dictionary.total_tokens
     }
 
-# load the corpus
-print('[#] loading the corpus..')
-corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
-cache = {
-    'idx2word': corpus.dictionary.idx2word,
-    'word2idx': corpus.dictionary.word2idx,
-    'total_tokens': corpus.dictionary.total_tokens
-}
-
 
 def batchify(data, bsz):
     # Work out how cleanly we can divide the dataset into bsz parts.
