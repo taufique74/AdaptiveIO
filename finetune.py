@@ -90,11 +90,28 @@ ckpt_path = os.path.join(args.save, args.ckpt)
 checkpoint = torch.load(ckpt_path, map_location=device)
 
 # retrieve the vocabulary from checkpoint
-cache = checkpoint['vocabulary']
+if 'vocabulary' in checkpoint.keys():
+    cache = checkpoint['vocabulary']
+    print('[#] loading the corpus..')
+    corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
+else:
+    # if checkpoint doesn't have the vocabulary, build it from scratch
+    print('[#] loading the corpus..')
+    corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
+    cache = {
+        'idx2word': corpus.dictionary.idx2word,
+        'word2idx': corpus.dictionary.word2idx,
+        'total_tokens': corpus.dictionary.total_tokens
+    }
 
 # load the corpus
 print('[#] loading the corpus..')
-corpus = data.Corpus(args.data, args.min_freq, args.add_eos, cache)
+corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
+cache = {
+    'idx2word': corpus.dictionary.idx2word,
+    'word2idx': corpus.dictionary.word2idx,
+    'total_tokens': corpus.dictionary.total_tokens
+}
 
 
 def batchify(data, bsz):
@@ -185,14 +202,18 @@ best_val_loss = checkpoint['val_loss']
 # load the optimizer state dict
 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
+# check if the learning rate is given as argument
 if 'lr' in finetune_args.keys():
-    print(f'[#] Using given learning rate {finetune_args["lr"]}')
+    learning_rate = finetune_args['lr']
+    print(f'[#] Using given learning rate {learning_rate}')
     for param_group in optimizer.param_groups:
         param_group['lr'] = args.lr
+    
 else:
     # if no learning rate is given, use the current lr of checkpoint optimizer
     current_lr = optimizer.state_dict()['param_groups'][0]['lr']
     print(f'[#] Since no learning rate is given, using the checkpoint current learning rate: {current_lr}')
+    learning_rate = current_lr
 
 # learning rate scheduler
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -369,7 +390,8 @@ try:
                     'optimizer_state_dict': optimizer.state_dict(),
                     'val_loss': val_loss,
                     'val_ppl': val_ppl,
-                    'lr': args.lr
+                    'lr': learning_rate,
+                    'vocabulary': cache
                 }, f'{args.save}/best_model_checkpoint.pt')
             else:
                 # this saves the checkpoint for every epoch
@@ -379,7 +401,8 @@ try:
                     'optimizer_state_dict': optimizer.state_dict(),
                     'val_loss': val_loss,
                     'val_ppl':val_ppl,
-                    'lr': args.lr
+                    'lr': learning_rate,
+                    'vocabulary': cache
                 }, f'{args.save}/checkpoint.pt')
 
         scheduler.step(val_loss)
