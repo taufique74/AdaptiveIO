@@ -93,9 +93,10 @@ checkpoint = torch.load(ckpt_path, map_location=device)
 if 'vocabulary' in checkpoint.keys():
     cache = checkpoint['vocabulary']
     print('[#] loading the corpus..')
-    corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
+    corpus = data.Corpus(args.data, args.min_freq, args.add_eos, cache)
 else:
     # if checkpoint doesn't have the vocabulary, build it from scratch
+    # N.B. this might produce dimension mismatch if the dataset is not the same
     print('[#] loading the corpus..')
     corpus = data.Corpus(args.data, args.min_freq, args.add_eos)
     cache = {
